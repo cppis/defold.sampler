@@ -1,0 +1,127 @@
+local rendercam = require "rendercam.rendercam"
+local gesture = require "in.gesture"
+
+local mouse_spos = vmath.vector3() -- screen pos
+local mouse_wpos = vmath.vector3() -- world pos
+
+local zstep = 10
+local panning = false
+
+local cursor = msg.url("main", "/cursor/dot", "script")
+local cam_ids
+local planeNormal = vmath.vector3(0, 0, 1)
+local planePoint = vmath.vector3(0, 0, 0)
+
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	gesture.SETTINGS.double_tap_interval = 1
+
+	self.orbitCamAngle = 0
+	rendercam.follow(go.get_id("character"), true, go.get_id("camera1"))
+
+	self.mouse_spos = vmath.vector3()
+	cam_ids = { go.get_id("camera1"), go.get_id("camera2") }
+	self.camIndex = 1
+
+	msg.post("/model#model", "disable")
+	--msg.post("/main#screen_widget", "disable")
+end
+
+function update(self, dt)
+	if self.camIndex == 1 then
+		-- if using the 2D orthographic camera
+		self.mouse_wpos = rendercam.screen_to_world_2d(self.mouse_spos.x, self.mouse_spos.y)
+	else
+		-- if using one of the other cameras
+		--		screen_to_world_2d works for a 2D-oriented perspective camera, but
+		--		will have some slight imprecision based on the size of the view depth.
+		local point = rendercam.screen_to_world_plane(self.mouse_spos.x, self.mouse_spos.y, planeNormal, planePoint)
+		-- point will be nil if the camera angle is parallel to the plane
+		if point then self.mouse_wpos = point end
+	end
+	msg.post(cursor, "update pos", {pos = self.mouse_wpos})
+end
+
+function on_input(self, action_id, action)
+	local g = gesture.on_input(self, action_id, action)
+	if g then
+		if g.swipe_left then
+			print("swipe_left", g.swipe.from, g.swipe.to)
+		elseif g.swipe_right then
+			print("swipe_right", g.swipe.from, g.swipe.to)
+		elseif g.swipe_up then
+			print("swipe_up", g.swipe.from, g.swipe.to)
+		elseif g.swipe_down then
+			print("swipe_down", g.swipe.from, g.swipe.to)
+		elseif g.tap then
+			print("tab", g.tap.position)
+			msg.post("/player/camera.camera", "play_animation", {id=hash("jump")})
+		elseif g.double_tap then
+			print("double_tap", g.double_tap.position)
+		elseif g.long_press then
+			print("long_press", g.long_press.position, g.long_press.time)
+		elseif g.two_finger.tap then
+			print("Two finger tap!")
+		elseif g.two_finger.pinch then
+			print("two_finger.pinch", g.two_finger.pinch.ratio, g.two_finger.center)
+		end
+	end
+		
+	if action_id == nil then
+		self.mouse_spos.x = action.screen_x;  self.mouse_spos.y = action.screen_y
+
+		if panning then
+			if self.camIndex == 1 or self.camIndex == 2 then
+				-- if using one of the 2D-oriented cameras, use cursor world delta
+				local dv = rendercam.screen_to_world_2d(action.screen_dx, action.screen_dy, true)
+				rendercam.pan(-dv.x, -dv.y)
+			else
+				-- if using one of the 3D-oriented cameras, just use screen delta
+				rendercam.pan(-action.screen_dx, -action.screen_dy)
+			end
+		end
+
+	elseif action_id == hash("mouse wheel up") then
+		rendercam.zoom(-zstep)
+
+	elseif action_id == hash("mouse wheel down") then
+		rendercam.zoom(zstep)
+
+	elseif action_id == hash("middle click") then
+		if action.pressed then
+			panning = true
+		elseif action.released then
+			panning = false
+		end
+
+	elseif action_id == hash("space") and action.pressed then
+		self.long = not self.long
+		rendercam.shake(self.long and 10 or 30, self.long and 1 or 0.1)
+
+	elseif action_id == hash("enter") and action.pressed then
+		local angle = math.random() * math.pi * 2
+		rendercam.recoil(vmath.vector3(-20, 0, 0), 0.3)
+
+	elseif action_id == hash("escape") then
+		msg.post("@system:", "exit", {code = 0})
+	end
+end
+
+function final(self)
+	msg.post(".", "release_input_focus")
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("switch cam.1") then
+		self.camIndex = 1
+		rendercam.activate_camera(cam_ids[self.camIndex])
+	elseif message_id == hash("switch cam.2") then
+		self.camIndex = 2
+		rendercam.activate_camera(cam_ids[self.camIndex])
+	elseif message_id == hash("grid on") then
+		msg.post("/main#grid", "enable")
+	elseif message_id == hash("grid off") then
+		msg.post("/main#grid", "disable")
+	end
+end
