@@ -1,7 +1,8 @@
 [project]
-title = sampler
-version = 1.0
+title = defold.sampler
+version = 0.1
 dependencies = https://github.com/britzl/gooey/archive/master.zip,https://github.com/britzl/defold-input/archive/master.zip,https://github.com/britzl/defcon/archive/master.zip,https://github.com/britzl/defnet/archive/3.1.zip,https://github.com/andsve/dirtylarry/archive/master.zip,https://github.com/defold/defold-examples/releases/download/0.2.0/alien-world.zip
+write_log = 1
 
 [bootstrap]
 main_collection = /main/main.collectionc
