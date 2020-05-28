@@ -5,7 +5,7 @@ dependencies = https://github.com/britzl/gooey/archive/master.zip,https://github
 write_log = 1
 
 [bootstrap]
-main_collection = /main/main.collectionc
+main_collection = /study.0/study.0.collectionc
 render = /rendercam/rendercam.renderc
 
 [input]
